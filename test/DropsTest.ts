@@ -110,7 +110,7 @@ describe("Drops", () => {
 
   describe("with an in order drop", () => {
     let signer1: SignerWithAddress;
-    let minterContract: ExpandedNFT;
+    let minterContract: OpenEditionsNFT;
     beforeEach(async () => {
       signer1 = (await ethers.getSigners())[1];
       await dynamicSketch.createDrop(

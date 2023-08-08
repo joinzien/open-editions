@@ -9,4 +9,3 @@ module.exports = async ({ getNamedAccounts, deployments }: any ) => {
 };
 
 module.exports.tags = ["OpenEditionsNFT"];
-module.exports.dependencies = ["TestCash"];

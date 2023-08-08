@@ -9,7 +9,7 @@ import { ethers, deployments } from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import {
   DropCreator,
-  ExpandedNFT,
+  OpenEditionsNFT,
 } from "../typechain";
 
 describe("Who Can Mint", () => {
@@ -47,7 +47,7 @@ describe("Who Can Mint", () => {
     const minterContract = (await ethers.getContractAt(
       "OpenEditionsNFT",
       dropResult
-    )) as ExpandedNFT;
+    )) as OpenEditionsNFT;
 
     await minterContract.setPricing(10, 500, 10, 10, 1, 1);
 
@@ -73,7 +73,7 @@ describe("Who Can Mint", () => {
     const minterContract = (await ethers.getContractAt(
       "OpenEditionsNFT",
       dropResult
-    )) as ExpandedNFT;
+    )) as OpenEditionsNFT;
 
     await minterContract.setPricing(10, 500, 10, 10, 1, 1);
 
@@ -97,7 +97,7 @@ describe("Who Can Mint", () => {
     const minterContract = (await ethers.getContractAt(
       "OpenEditionsNFT",
       dropResult
-    )) as ExpandedNFT;
+    )) as OpenEditionsNFT;
 
     await minterContract.setPricing(10, 500, 10, 10, 1, 1);
 

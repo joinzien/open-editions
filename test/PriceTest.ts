@@ -18,7 +18,7 @@ describe("Pricing", () => {
   let dynamicSketch: DropCreator;
   let artist: SignerWithAddress;
   let artistAddress: string;
-  let minterContract: ExpandedNFT;
+  let minterContract: OpenEditionsNFT;
 
   beforeEach(async () => {
     const { DropCreator } = await deployments.fixture([

@@ -21,7 +21,7 @@ describe("Withdraw", () => {
 
   let dynamicSketch: DropCreator;
 
-  let minterContract: ExpandedNFT;
+  let minterContract: OpenEditionsNFT;
   let minterContractAddress: string;
 
   const nullAddress = "0x0000000000000000000000000000000000000000";
@@ -51,7 +51,7 @@ describe("Withdraw", () => {
     minterContract = (await ethers.getContractAt(
       "OpenEditionsNFT",
       dropResult
-    )) as ExpandedNFT;
+    )) as OpenEditionsNFT;
     minterContractAddress = await minterContract.address;
 
     const mintCost = ethers.utils.parseEther("0.1");
