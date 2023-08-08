@@ -32,7 +32,7 @@ describe("Redeem", () => {
 
   let dynamicSketch: DropCreator;
 
-  let minterContract: ExpandedNFT;
+  let minterContract: OpenEditionsNFT;
 
   beforeEach(async () => {
     const { DropCreator } = await deployments.fixture([

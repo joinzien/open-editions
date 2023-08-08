@@ -56,7 +56,7 @@ describe("Burn", () => {
     minterContract = (await ethers.getContractAt(
       "OpenEditionsNFT",
       dropResult
-    )) as ExpandedNFT;
+    )) as OpenEditionsNFT;
 
     const mintCost = ethers.utils.parseEther("0.1");
     await minterContract.setPricing(10, 500, mintCost, mintCost, 2, 1);
