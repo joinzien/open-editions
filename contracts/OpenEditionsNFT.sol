@@ -9,10 +9,10 @@
 pragma solidity ^0.8.19;
 
 import {ERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
+import {IERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/IERC721Upgradeable.sol";
 import {IERC2981Upgradeable, IERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/interfaces/IERC2981Upgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {AddressUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
-import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import {StringsUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/StringsUpgradeable.sol";
 
 import {IOpenEditionsNFT} from "./IOpenEditionsNFT.sol";
@@ -91,8 +91,22 @@ contract OpenEditionsNFT is
         WhoCanMint whoCanMint;
 
         // Mint counts for each address
-        mapping(address => uint256) mintCounts;                               
+        mapping(address => uint256) mintCounts;  
+
+        // Annual pass address
+        IERC721Upgradeable annualPassAddress;
+
+        // Lifetime pass address
+        IERC721Upgradeable lifetimePassAddress;
+
+        // Annual pass discount
+        uint256 annualPassDiscount; 
+
+        // Lifetime pass discount
+        uint256 lifetimePassDiscount;                                         
     }
+
+    uint256 private constant _HUNDRED_PERCENT_AS_BPS = 10000;
 
     // Artists wallet address
     address private _artistWallet;
@@ -207,6 +221,26 @@ contract OpenEditionsNFT is
     function getGeneralMintLimit() public view returns (uint256) {
         return _pricing.generalMintLimit;
     }
+
+    /// @dev returns the Annual pass address
+    function getAnnualPassAddress() public view returns (address) {
+        return address(_pricing.annualPassAddress);
+    }
+
+    /// @dev returns the Lifetime pass address
+    function getLifetimePassAddress() public view returns (address) {
+        return address(_pricing.lifetimePassAddress);
+    }
+
+    /// @dev returns the Annual pass discount
+    function getAnnualPassDiscount() public view returns (uint256) {
+        return _pricing.annualPassDiscount;
+    }
+
+    /// @dev returns the Lifetime pass discount
+    function getLifetimePassDiscount() public view returns (uint256) {
+        return _pricing.lifetimePassDiscount;
+    }    
 
     /// @dev returns mint limit for the address
     function getMintLimit(address wallet) public view returns (uint256) {
@@ -332,7 +366,38 @@ contract OpenEditionsNFT is
     function _paymentAmountCorrect(uint256 numberToBeMinted)
         internal returns (bool)
     {
-        if (msg.value == (price() * numberToBeMinted)) {
+        uint256 paymentAmount = price() * numberToBeMinted;
+
+        // Assuming Lifetime passes have a greeater or equal discount to the annual pass 
+        if (address(_pricing.lifetimePassAddress) != address(0x0)) {
+            if (_pricing.lifetimePassAddress.balanceOf(msg.sender) > 0) {
+                uint256 discount = _HUNDRED_PERCENT_AS_BPS - _pricing.lifetimePassDiscount;
+                uint256 lifetimePassPaymentAmount = (paymentAmount * discount) / _HUNDRED_PERCENT_AS_BPS; 
+
+                if (msg.value == lifetimePassPaymentAmount) {
+                    return (true);
+                }
+
+                return (false);
+            }
+        }
+
+        if (address(_pricing.annualPassAddress) != address(0x0)) {
+            if (_pricing.annualPassAddress.balanceOf(msg.sender) > 0) {
+                uint256 discount = _HUNDRED_PERCENT_AS_BPS - _pricing.annualPassDiscount;
+                uint256 annualPassPaymentAmount = (paymentAmount * discount) / _HUNDRED_PERCENT_AS_BPS; 
+
+                if (msg.value == annualPassPaymentAmount) {
+                    return (true);
+                }
+
+                return (false);
+            }
+        }
+
+        if (msg.value == paymentAmount) {
+
+
             return (true);
         }
 
