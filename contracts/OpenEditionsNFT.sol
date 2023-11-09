@@ -755,8 +755,11 @@ contract OpenEditionsNFT is
         string memory _redeemedMetadataUrl
 
     ) public onlyOwner {
-        require(tokenID > 0, "tokenID > 0");
-        require(tokenID <= dropSize, "tokenID <= drop size");
+        if (tokenID < 1) {
+            revert InvalidTokenId(tokenID);
+        } else if (tokenID > dropSize) {
+            revert InvalidTokenId(tokenID);
+        }
 
         _perTokenMetadata[tokenID].redeemedMetadataUrl = _redeemedMetadataUrl;
 
@@ -773,13 +776,21 @@ contract OpenEditionsNFT is
         User burn function for token id 
      */
     function burn(uint256 tokenId) public {
-        require(_isApprovedOrOwner(_msgSender(), tokenId), "Not approved");
+        if (_isApprovedOrOwner(_msgSender(), tokenId) != true) {
+            revert NotApproved(tokenId);
+        }
+
         _burn(tokenId);
     }
 
     function productionStart(uint256 tokenId) public onlyOwner {
-        require(_exists(tokenId), "No token");        
-        require((_perTokenMetadata[tokenId].state== ExpandedNFTStates.MINTED), "Wrong state");
+        if (_exists(tokenId) != true) {
+            revert InvalidTokenId(tokenId);
+        }
+
+        if (_perTokenMetadata[tokenId].state != ExpandedNFTStates.MINTED) {
+            revert WrongState(tokenId, _perTokenMetadata[tokenId].state, ExpandedNFTStates.MINTED);
+        }  
 
         _perTokenMetadata[tokenId].state = ExpandedNFTStates.REDEEM_STARTED;
 
@@ -790,8 +801,13 @@ contract OpenEditionsNFT is
         uint256 tokenId,
         string memory _redeemedMetadataUrl              
     ) public onlyOwner {
-        require(_exists(tokenId), "No token");        
-        require((_perTokenMetadata[tokenId].state == ExpandedNFTStates.REDEEM_STARTED), "You currently can not redeem");
+        if (_exists(tokenId) != true) {
+            revert InvalidTokenId(tokenId);
+        }
+
+        if (_perTokenMetadata[tokenId].state != ExpandedNFTStates.REDEEM_STARTED) {
+            revert WrongState(tokenId, _perTokenMetadata[tokenId].state, ExpandedNFTStates.REDEEM_STARTED);
+        }
 
         _perTokenMetadata[tokenId].redeemedMetadataUrl = _redeemedMetadataUrl;
         _perTokenMetadata[tokenId].state = ExpandedNFTStates.REDEEMED;
@@ -827,7 +843,9 @@ contract OpenEditionsNFT is
         override
         returns (string memory)
     {
-        require(_exists(tokenId), "No token");
+        if (_exists(tokenId) != true) {
+            revert InvalidTokenId(tokenId);
+        }
 
         if (_perTokenMetadata[tokenId].state == ExpandedNFTStates.REDEEMED) {
             return (_perTokenMetadata[tokenId].redeemedMetadataUrl);

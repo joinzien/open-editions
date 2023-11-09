@@ -354,7 +354,7 @@ describe("Metadata", () => {
 
     await expect(minterContract.updateRedeemedMetadata(
       0, "https://example.com/redeemed/0001"
-    )).to.be.revertedWith("tokenID > 0");
+    )).to.be.revertedWith("InvalidTokenId");
   });
 
   it("Update redeemed metadata over the ending index", async () => {
@@ -373,7 +373,7 @@ describe("Metadata", () => {
 
     await expect(minterContract.updateRedeemedMetadata(
       11, "https://example.com/redeemed/0001"
-    )).to.be.revertedWith("tokenID <= drop size");
+    )).to.be.revertedWith("InvalidTokenId");
   });
 
   it("Update redeemed metadata", async () => {
@@ -409,7 +409,7 @@ describe("Metadata", () => {
       dropResult
     )) as OpenEditionsNFT;
 
-    await expect(minterContract.tokenURI(0)).to.be.revertedWith("No token");
+    await expect(minterContract.tokenURI(0)).to.be.revertedWith("InvalidTokenId");
   });
 
   it("Check metadata values", async () => {
