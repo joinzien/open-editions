@@ -44,6 +44,20 @@ contract OpenEditionsNFT is
     event ProductionComplete(uint256 tokenId);
     event DeliveryAccepted(uint256 tokenId);
 
+    // errors
+    error InvalidDropSize();
+    error InvalidTokenId(uint256 tokenId);    
+    error NotAllowedToMint(address minter);
+    error NotEnoughSupply(uint256 count);
+    error NotApproved(uint256 tokenId);  
+    error MintingTooMany(uint256 count, uint256 mintLimit);
+    error WrongPrice(uint256 price);
+    error LengthMismatch(uint256 tokens, uint256 wallets);
+    error SizeMismatch(uint256 count, uint256 length);
+    error MustBeUnminted(uint256 token);
+    error NotReserved(uint256 token);
+    error WrongState(uint256 token, ExpandedNFTStates actual, ExpandedNFTStates expected);
+
     /// @title EIP-721 Metadata Update Extension
 
     /// @dev This event emits when the metadata of a token is changed.
@@ -300,8 +314,11 @@ contract OpenEditionsNFT is
       @dev returns the current state of the provided token
      */
     function redeemedState(uint256 tokenId) public view returns (uint256) {
-        require(tokenId > 0, "tokenID > 0");
-        require(tokenId <= dropSize, "tokenID <= drop size");
+        if (tokenId < 1) {
+            revert InvalidTokenId(tokenId);
+        } else if (tokenId > dropSize) {
+            revert InvalidTokenId(tokenId);
+        }
 
         return uint256(_perTokenMetadata[tokenId].state);
     }
