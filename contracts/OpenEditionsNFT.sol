@@ -428,12 +428,21 @@ contract OpenEditionsNFT is
     function _mintEditionsBody(address[] memory recipients)
         internal returns (uint256)
     {
-        require(_isAllowedToMint(), "Needs to be an allowed minter");
+        if (_isAllowedToMint() != true) {
+            revert NotAllowedToMint(msg.sender);
+        }
 
-        require(recipients.length <= numberCanMint(), "Exceeded supply");
-        require((_pricing.mintCounts[msg.sender] + recipients.length) <= _currentMintLimit(msg.sender), "Exceeded mint limit");
+        if (recipients.length > numberCanMint()) {
+            revert NotEnoughSupply(recipients.length);
+        }
 
-        require(_paymentAmountCorrect(recipients.length), "Wrong price");
+        if ((_pricing.mintCounts[msg.sender] + recipients.length) > _currentMintLimit(msg.sender))  {
+            revert MintingTooMany(recipients.length, _currentMintLimit(msg.sender));
+        }
+
+        if (_paymentAmountCorrect(recipients.length) != true) {
+            revert WrongPrice(msg.value);
+        }
 
         for (uint256 i = 0; i < recipients.length; i++) {
             _mint(recipients[i], _currentIndex);

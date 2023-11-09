@@ -66,12 +66,12 @@ describe("Mint randomly", () => {
       await minterContract.setAllowedMinter(0);
   
       // Mint as a contract owner
-      await expect(minterContract.connect(user).mintEdition(userAddress)).to.be.revertedWith("Needs to be an allowed minter");      
+      await expect(minterContract.connect(user).mintEdition(userAddress)).to.be.revertedWith("NotAllowedToMint");      
   
       await minterContract.setAllowedMinter(1);
   
       // Mint as a member of the allow list
-      await expect(minterContract.connect(user).mintEdition(userAddress)).to.be.revertedWith("Needs to be an allowed minter");   
+      await expect(minterContract.connect(user).mintEdition(userAddress)).to.be.revertedWith("NotAllowedToMint");   
   
       await minterContract.setAllowedMinter(2);
   
@@ -109,13 +109,13 @@ describe("Mint randomly", () => {
     it("General public can not mint while the drop is not for sale", async () => {
       await minterContract.setAllowedMinter(0);
   
-      await expect(minterContract.connect(user).mintEditions([signerAddress], { value: ethers.utils.parseEther("0.1") })).to.be.revertedWith("Needs to be an allowed minter");
+      await expect(minterContract.connect(user).mintEditions([signerAddress], { value: ethers.utils.parseEther("0.1") })).to.be.revertedWith("NotAllowedToMint");
     });
   
     it("General public can not mint when not on the allow list", async () => {
       await minterContract.setAllowedMinter(1);
   
-      await expect(minterContract.connect(user).mintEditions([signerAddress], { value: ethers.utils.parseEther("0.1") })).to.be.revertedWith("Needs to be an allowed minter");
+      await expect(minterContract.connect(user).mintEditions([signerAddress], { value: ethers.utils.parseEther("0.1") })).to.be.revertedWith("NotAllowedToMint");
     });
   
     it("General public can mint when mint is open to everyone", async () => {
@@ -128,7 +128,7 @@ describe("Mint randomly", () => {
       await minterContract.setAllowListMinters(1, [userAddress], [true])
       await minterContract.setAllowedMinter(0);
   
-      await expect(minterContract.connect(user).mintEditions([signerAddress], { value: ethers.utils.parseEther("0.1") })).to.be.revertedWith("Needs to be an allowed minter");
+      await expect(minterContract.connect(user).mintEditions([signerAddress], { value: ethers.utils.parseEther("0.1") })).to.be.revertedWith("NotAllowedToMint");
     });
   
     it("An allow list member can mint when on the allow list", async () => {
