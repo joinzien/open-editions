@@ -703,8 +703,8 @@ contract OpenEditionsNFT is
 
         require(_mintedMetadataUrl.length == count, "Data size mismatch");
 
-        for (uint i = 0; i < count; i++) {
-            uint index =  startIndex + i;
+        for (uint256 i = 0; i < count; i++) {
+            uint256 index =  startIndex + i;
             
             _perTokenMetadata[index].mintedMetadataUrl =_mintedMetadataUrl[i];
 
