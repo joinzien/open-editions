@@ -724,10 +724,15 @@ contract OpenEditionsNFT is
         uint256 count,
         string[] memory _mintedMetadataUrl
     ) public onlyOwner {
-        require(startIndex > 0, "StartIndex > 0");
-        require(startIndex + count - 1 <= dropSize, "Data large than drop size");
+        if (startIndex < 1) {
+            revert InvalidTokenId(startIndex);
+        } else if ((startIndex + count - 1) > dropSize) {
+            revert InvalidTokenId(startIndex + count - 1);
+        }
 
-        require(_mintedMetadataUrl.length == count, "Data size mismatch");
+        if (_mintedMetadataUrl.length != count) {
+            revert SizeMismatch(count, _mintedMetadataUrl.length);
+        }
 
         for (uint256 i = 0; i < count; i++) {
             uint256 index =  startIndex + i;
