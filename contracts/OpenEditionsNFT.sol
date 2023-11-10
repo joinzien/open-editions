@@ -113,11 +113,13 @@ contract OpenEditionsNFT is
         // Lifetime pass address
         IERC721Upgradeable lifetimePassAddress;
 
-        // Annual pass discount
-        uint256 annualPassDiscount; 
+        // Annual pass price
+        uint256 annualPassAllowListPrice; 
+        uint256 annualPassGeneralPrice; 
 
-        // Lifetime pass discount
-        uint256 lifetimePassDiscount;                                         
+        // Lifetime pass price
+        uint256 lifetimePassAllowListPrice;  
+        uint256 lifetimePassGeneralPrice;                                             
     }
 
     uint256 private constant _HUNDRED_PERCENT_AS_BPS = 10000;
@@ -246,15 +248,25 @@ contract OpenEditionsNFT is
         return address(_pricing.lifetimePassAddress);
     }
 
-    /// @dev returns the Annual pass discount
-    function getAnnualPassDiscount() public view returns (uint256) {
-        return _pricing.annualPassDiscount;
+    /// @dev returns the Annual pass price
+    function getAnnualPassAllowListPrice() public view returns (uint256) {
+        return _pricing.annualPassAllowListPrice;
     }
 
-    /// @dev returns the Lifetime pass discount
-    function getLifetimePassDiscount() public view returns (uint256) {
-        return _pricing.lifetimePassDiscount;
-    }    
+    /// @dev returns the Annual pass price
+    function getAnnualPassGeneralPrice() public view returns (uint256) {
+        return _pricing.annualPassGeneralPrice;
+    }
+
+    /// @dev returns the Lifetime pass price
+    function getLifetimeAllowListPassPrice() public view returns (uint256) {
+        return _pricing.lifetimePassAllowListPrice;
+    }
+
+    /// @dev returns the Lifetime pass price
+    function getLifetimePassGeneralPrice() public view returns (uint256) {
+        return _pricing.lifetimePassGeneralPrice;
+    }  
 
     /// @dev returns mint limit for the address
     function getMintLimit(address wallet) public view returns (uint256) {
@@ -302,8 +314,34 @@ contract OpenEditionsNFT is
      */
     function price() public view returns (uint256){
         if (_pricing.whoCanMint == WhoCanMint.ALLOWLIST) {
+            // Assuming Lifetime passes have a greater or equal discount to the annual pass 
+            if (address(_pricing.lifetimePassAddress) != address(0x0)) {
+                if (_pricing.lifetimePassAddress.balanceOf(msg.sender) > 0) {
+                    return _pricing.lifetimePassAllowListPrice;   
+                }
+            }
+
+            if (address(_pricing.annualPassAddress) != address(0x0)) {
+                if (_pricing.annualPassAddress.balanceOf(msg.sender) > 0) {
+                    return _pricing.annualPassAllowListPrice;
+                }
+            }
+
             return _pricing.allowListSalePrice;
         } else if (_pricing.whoCanMint == WhoCanMint.ANYONE) {
+            // Assuming Lifetime passes have a greater or equal discount to the annual pass 
+            if (address(_pricing.lifetimePassAddress) != address(0x0)) {
+                if (_pricing.lifetimePassAddress.balanceOf(msg.sender) > 0) {
+                    return _pricing.lifetimePassGeneralPrice;
+                }
+            }
+
+            if (address(_pricing.annualPassAddress) != address(0x0)) {
+                if (_pricing.annualPassAddress.balanceOf(msg.sender) > 0) {
+                    return _pricing.annualPassGeneralPrice;
+                }
+            }
+
             return salePrice;
         } 
             
@@ -385,36 +423,7 @@ contract OpenEditionsNFT is
     {
         uint256 paymentAmount = price() * numberToBeMinted;
 
-        // Assuming Lifetime passes have a greeater or equal discount to the annual pass 
-        if (address(_pricing.lifetimePassAddress) != address(0x0)) {
-            if (_pricing.lifetimePassAddress.balanceOf(msg.sender) > 0) {
-                uint256 discount = _HUNDRED_PERCENT_AS_BPS - _pricing.lifetimePassDiscount;
-                uint256 lifetimePassPaymentAmount = (paymentAmount * discount) / _HUNDRED_PERCENT_AS_BPS; 
-
-                if (msg.value == lifetimePassPaymentAmount) {
-                    return (true);
-                }
-
-                return (false);
-            }
-        }
-
-        if (address(_pricing.annualPassAddress) != address(0x0)) {
-            if (_pricing.annualPassAddress.balanceOf(msg.sender) > 0) {
-                uint256 discount = _HUNDRED_PERCENT_AS_BPS - _pricing.annualPassDiscount;
-                uint256 annualPassPaymentAmount = (paymentAmount * discount) / _HUNDRED_PERCENT_AS_BPS; 
-
-                if (msg.value == annualPassPaymentAmount) {
-                    return (true);
-                }
-
-                return (false);
-            }
-        }
-
         if (msg.value == paymentAmount) {
-
-
             return (true);
         }
 
@@ -465,6 +474,28 @@ contract OpenEditionsNFT is
 
         return _currentIndex;        
     }  
+
+    /**
+      @param annualPassAddress Annual pass ERC721 token address. Can be null if no token is in use.
+      @param lifetimePassAddress Lifetime pass ERC721 token address. Can be null if no token is in use.
+      @param annualPassAllowListPrice the allowlist price when holding an annual pass
+      @param annualPassGeneralPrice the general price when holding an annual pass
+      @param lifetimePassAllowListPrice the allowlist price when holding an lifetime pass
+      @param lifetimePassGeneralPrice the general price when holding an lifetime pass                                                                               
+      @dev Set various pricing related values
+     */
+    function  updateDiscounts(address annualPassAddress, address lifetimePassAddress, 
+        uint256 annualPassAllowListPrice, uint256 annualPassGeneralPrice, 
+        uint256 lifetimePassAllowListPrice, uint256 lifetimePassGeneralPrice) external onlyOwner { 
+        _pricing.annualPassAddress = IERC721Upgradeable(annualPassAddress);
+        _pricing.lifetimePassAddress = IERC721Upgradeable(lifetimePassAddress);
+
+        _pricing.annualPassAllowListPrice = annualPassAllowListPrice;
+        _pricing.annualPassGeneralPrice = annualPassGeneralPrice;
+
+        _pricing.lifetimePassAllowListPrice = lifetimePassAllowListPrice;  
+        _pricing.lifetimePassGeneralPrice = lifetimePassGeneralPrice;     
+    }
 
     /**
       @param _royaltyBPS BPS of the royalty set on the contract. Can be 0 for no royalty.
@@ -609,12 +640,24 @@ contract OpenEditionsNFT is
 
         if (owner() == msg.sender) {
             return true;
-        }  
+        }   
 
         if (_pricing.whoCanMint == WhoCanMint.ALLOWLIST) {
             if (_pricing.allowListMinters[msg.sender]) {
                 return true;
-            }            
+            } 
+
+            if (address(_pricing.lifetimePassAddress) != address(0x0)) {
+                if (_pricing.lifetimePassAddress.balanceOf(msg.sender) > 0) {
+                    return (true);
+                }
+            }
+
+            if (address(_pricing.annualPassAddress) != address(0x0)) {
+                if (_pricing.annualPassAddress.balanceOf(msg.sender) > 0) {
+                    return (true);
+                }
+            }
         }
 
         return false;
