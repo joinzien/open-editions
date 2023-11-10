@@ -9,10 +9,10 @@
 pragma solidity ^0.8.19;
 
 import {ERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
+import {IERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/IERC721Upgradeable.sol";
 import {IERC2981Upgradeable, IERC165Upgradeable} from "@openzeppelin/contracts-upgradeable/interfaces/IERC2981Upgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {AddressUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
-import {IERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import {StringsUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/StringsUpgradeable.sol";
 
 import {IOpenEditionsNFT} from "./IOpenEditionsNFT.sol";
@@ -43,6 +43,20 @@ contract OpenEditionsNFT is
     event RedeemStarted(uint256 tokenId);
     event ProductionComplete(uint256 tokenId);
     event DeliveryAccepted(uint256 tokenId);
+
+    // errors
+    error InvalidDropSize();
+    error InvalidTokenId(uint256 tokenId);    
+    error NotAllowedToMint(address minter);
+    error NotEnoughSupply(uint256 count);
+    error NotApproved(uint256 tokenId);  
+    error MintingTooMany(uint256 count, uint256 mintLimit);
+    error WrongPrice(uint256 price);
+    error LengthMismatch(uint256 tokens, uint256 wallets);
+    error SizeMismatch(uint256 count, uint256 length);
+    error MustBeUnminted(uint256 token);
+    error NotReserved(uint256 token);
+    error WrongState(uint256 token, ExpandedNFTStates actual, ExpandedNFTStates expected);
 
     /// @title EIP-721 Metadata Update Extension
 
@@ -91,8 +105,24 @@ contract OpenEditionsNFT is
         WhoCanMint whoCanMint;
 
         // Mint counts for each address
-        mapping(address => uint256) mintCounts;                               
+        mapping(address => uint256) mintCounts;  
+
+        // Annual pass address
+        IERC721Upgradeable annualPassAddress;
+
+        // Lifetime pass address
+        IERC721Upgradeable lifetimePassAddress;
+
+        // Annual pass price
+        uint256 annualPassAllowListPrice; 
+        uint256 annualPassGeneralPrice; 
+
+        // Lifetime pass price
+        uint256 lifetimePassAllowListPrice;  
+        uint256 lifetimePassGeneralPrice;                                             
     }
+
+    uint256 private constant _HUNDRED_PERCENT_AS_BPS = 10000;
 
     // Artists wallet address
     address private _artistWallet;
@@ -208,6 +238,36 @@ contract OpenEditionsNFT is
         return _pricing.generalMintLimit;
     }
 
+    /// @dev returns the Annual pass address
+    function getAnnualPassAddress() public view returns (address) {
+        return address(_pricing.annualPassAddress);
+    }
+
+    /// @dev returns the Lifetime pass address
+    function getLifetimePassAddress() public view returns (address) {
+        return address(_pricing.lifetimePassAddress);
+    }
+
+    /// @dev returns the Annual pass price
+    function getAnnualPassAllowListPrice() public view returns (uint256) {
+        return _pricing.annualPassAllowListPrice;
+    }
+
+    /// @dev returns the Annual pass price
+    function getAnnualPassGeneralPrice() public view returns (uint256) {
+        return _pricing.annualPassGeneralPrice;
+    }
+
+    /// @dev returns the Lifetime pass price
+    function getLifetimeAllowListPassPrice() public view returns (uint256) {
+        return _pricing.lifetimePassAllowListPrice;
+    }
+
+    /// @dev returns the Lifetime pass price
+    function getLifetimePassGeneralPrice() public view returns (uint256) {
+        return _pricing.lifetimePassGeneralPrice;
+    }  
+
     /// @dev returns mint limit for the address
     function getMintLimit(address wallet) public view returns (uint256) {
         if (wallet == owner()) {
@@ -254,8 +314,34 @@ contract OpenEditionsNFT is
      */
     function price() public view returns (uint256){
         if (_pricing.whoCanMint == WhoCanMint.ALLOWLIST) {
+            // Assuming Lifetime passes have a greater or equal discount to the annual pass 
+            if (address(_pricing.lifetimePassAddress) != address(0x0)) {
+                if (_pricing.lifetimePassAddress.balanceOf(msg.sender) > 0) {
+                    return _pricing.lifetimePassAllowListPrice;   
+                }
+            }
+
+            if (address(_pricing.annualPassAddress) != address(0x0)) {
+                if (_pricing.annualPassAddress.balanceOf(msg.sender) > 0) {
+                    return _pricing.annualPassAllowListPrice;
+                }
+            }
+
             return _pricing.allowListSalePrice;
         } else if (_pricing.whoCanMint == WhoCanMint.ANYONE) {
+            // Assuming Lifetime passes have a greater or equal discount to the annual pass 
+            if (address(_pricing.lifetimePassAddress) != address(0x0)) {
+                if (_pricing.lifetimePassAddress.balanceOf(msg.sender) > 0) {
+                    return _pricing.lifetimePassGeneralPrice;
+                }
+            }
+
+            if (address(_pricing.annualPassAddress) != address(0x0)) {
+                if (_pricing.annualPassAddress.balanceOf(msg.sender) > 0) {
+                    return _pricing.annualPassGeneralPrice;
+                }
+            }
+
             return salePrice;
         } 
             
@@ -266,8 +352,11 @@ contract OpenEditionsNFT is
       @dev returns the current state of the provided token
      */
     function redeemedState(uint256 tokenId) public view returns (uint256) {
-        require(tokenId > 0, "tokenID > 0");
-        require(tokenId <= dropSize, "tokenID <= drop size");
+        if (tokenId < 1) {
+            revert InvalidTokenId(tokenId);
+        } else if (tokenId > dropSize) {
+            revert InvalidTokenId(tokenId);
+        }
 
         return uint256(_perTokenMetadata[tokenId].state);
     }
@@ -332,7 +421,9 @@ contract OpenEditionsNFT is
     function _paymentAmountCorrect(uint256 numberToBeMinted)
         internal returns (bool)
     {
-        if (msg.value == (price() * numberToBeMinted)) {
+        uint256 paymentAmount = price() * numberToBeMinted;
+
+        if (msg.value == paymentAmount) {
             return (true);
         }
 
@@ -346,12 +437,21 @@ contract OpenEditionsNFT is
     function _mintEditionsBody(address[] memory recipients)
         internal returns (uint256)
     {
-        require(_isAllowedToMint(), "Needs to be an allowed minter");
+        if (_isAllowedToMint() != true) {
+            revert NotAllowedToMint(msg.sender);
+        }
 
-        require(recipients.length <= numberCanMint(), "Exceeded supply");
-        require((_pricing.mintCounts[msg.sender] + recipients.length) <= _currentMintLimit(msg.sender), "Exceeded mint limit");
+        if (recipients.length > numberCanMint()) {
+            revert NotEnoughSupply(recipients.length);
+        }
 
-        require(_paymentAmountCorrect(recipients.length), "Wrong price");
+        if ((_pricing.mintCounts[msg.sender] + recipients.length) > _currentMintLimit(msg.sender))  {
+            revert MintingTooMany(recipients.length, _currentMintLimit(msg.sender));
+        }
+
+        if (_paymentAmountCorrect(recipients.length) != true) {
+            revert WrongPrice(msg.value);
+        }
 
         for (uint256 i = 0; i < recipients.length; i++) {
             _mint(recipients[i], _currentIndex);
@@ -374,6 +474,28 @@ contract OpenEditionsNFT is
 
         return _currentIndex;        
     }  
+
+    /**
+      @param annualPassAddress Annual pass ERC721 token address. Can be null if no token is in use.
+      @param lifetimePassAddress Lifetime pass ERC721 token address. Can be null if no token is in use.
+      @param annualPassAllowListPrice the allowlist price when holding an annual pass
+      @param annualPassGeneralPrice the general price when holding an annual pass
+      @param lifetimePassAllowListPrice the allowlist price when holding an lifetime pass
+      @param lifetimePassGeneralPrice the general price when holding an lifetime pass                                                                               
+      @dev Set various pricing related values
+     */
+    function  updateDiscounts(address annualPassAddress, address lifetimePassAddress, 
+        uint256 annualPassAllowListPrice, uint256 annualPassGeneralPrice, 
+        uint256 lifetimePassAllowListPrice, uint256 lifetimePassGeneralPrice) external onlyOwner { 
+        _pricing.annualPassAddress = IERC721Upgradeable(annualPassAddress);
+        _pricing.lifetimePassAddress = IERC721Upgradeable(lifetimePassAddress);
+
+        _pricing.annualPassAllowListPrice = annualPassAllowListPrice;
+        _pricing.annualPassGeneralPrice = annualPassGeneralPrice;
+
+        _pricing.lifetimePassAllowListPrice = lifetimePassAllowListPrice;  
+        _pricing.lifetimePassGeneralPrice = lifetimePassGeneralPrice;     
+    }
 
     /**
       @param _royaltyBPS BPS of the royalty set on the contract. Can be 0 for no royalty.
@@ -518,12 +640,24 @@ contract OpenEditionsNFT is
 
         if (owner() == msg.sender) {
             return true;
-        }  
+        }   
 
         if (_pricing.whoCanMint == WhoCanMint.ALLOWLIST) {
             if (_pricing.allowListMinters[msg.sender]) {
                 return true;
-            }            
+            } 
+
+            if (address(_pricing.lifetimePassAddress) != address(0x0)) {
+                if (_pricing.lifetimePassAddress.balanceOf(msg.sender) > 0) {
+                    return (true);
+                }
+            }
+
+            if (address(_pricing.annualPassAddress) != address(0x0)) {
+                if (_pricing.annualPassAddress.balanceOf(msg.sender) > 0) {
+                    return (true);
+                }
+            }
         }
 
         return false;
@@ -633,13 +767,18 @@ contract OpenEditionsNFT is
         uint256 count,
         string[] memory _mintedMetadataUrl
     ) public onlyOwner {
-        require(startIndex > 0, "StartIndex > 0");
-        require(startIndex + count - 1 <= dropSize, "Data large than drop size");
+        if (startIndex < 1) {
+            revert InvalidTokenId(startIndex);
+        } else if ((startIndex + count - 1) > dropSize) {
+            revert InvalidTokenId(startIndex + count - 1);
+        }
 
-        require(_mintedMetadataUrl.length == count, "Data size mismatch");
+        if (_mintedMetadataUrl.length != count) {
+            revert SizeMismatch(count, _mintedMetadataUrl.length);
+        }
 
-        for (uint i = 0; i < count; i++) {
-            uint index =  startIndex + i;
+        for (uint256 i = 0; i < count; i++) {
+            uint256 index =  startIndex + i;
             
             _perTokenMetadata[index].mintedMetadataUrl =_mintedMetadataUrl[i];
 
@@ -659,8 +798,11 @@ contract OpenEditionsNFT is
         string memory _redeemedMetadataUrl
 
     ) public onlyOwner {
-        require(tokenID > 0, "tokenID > 0");
-        require(tokenID <= dropSize, "tokenID <= drop size");
+        if (tokenID < 1) {
+            revert InvalidTokenId(tokenID);
+        } else if (tokenID > dropSize) {
+            revert InvalidTokenId(tokenID);
+        }
 
         _perTokenMetadata[tokenID].redeemedMetadataUrl = _redeemedMetadataUrl;
 
@@ -677,13 +819,21 @@ contract OpenEditionsNFT is
         User burn function for token id 
      */
     function burn(uint256 tokenId) public {
-        require(_isApprovedOrOwner(_msgSender(), tokenId), "Not approved");
+        if (_isApprovedOrOwner(_msgSender(), tokenId) != true) {
+            revert NotApproved(tokenId);
+        }
+
         _burn(tokenId);
     }
 
     function productionStart(uint256 tokenId) public onlyOwner {
-        require(_exists(tokenId), "No token");        
-        require((_perTokenMetadata[tokenId].state== ExpandedNFTStates.MINTED), "Wrong state");
+        if (_exists(tokenId) != true) {
+            revert InvalidTokenId(tokenId);
+        }
+
+        if (_perTokenMetadata[tokenId].state != ExpandedNFTStates.MINTED) {
+            revert WrongState(tokenId, _perTokenMetadata[tokenId].state, ExpandedNFTStates.MINTED);
+        }  
 
         _perTokenMetadata[tokenId].state = ExpandedNFTStates.REDEEM_STARTED;
 
@@ -694,8 +844,13 @@ contract OpenEditionsNFT is
         uint256 tokenId,
         string memory _redeemedMetadataUrl              
     ) public onlyOwner {
-        require(_exists(tokenId), "No token");        
-        require((_perTokenMetadata[tokenId].state == ExpandedNFTStates.REDEEM_STARTED), "You currently can not redeem");
+        if (_exists(tokenId) != true) {
+            revert InvalidTokenId(tokenId);
+        }
+
+        if (_perTokenMetadata[tokenId].state != ExpandedNFTStates.REDEEM_STARTED) {
+            revert WrongState(tokenId, _perTokenMetadata[tokenId].state, ExpandedNFTStates.REDEEM_STARTED);
+        }
 
         _perTokenMetadata[tokenId].redeemedMetadataUrl = _redeemedMetadataUrl;
         _perTokenMetadata[tokenId].state = ExpandedNFTStates.REDEEMED;
@@ -731,7 +886,9 @@ contract OpenEditionsNFT is
         override
         returns (string memory)
     {
-        require(_exists(tokenId), "No token");
+        if (_exists(tokenId) != true) {
+            revert InvalidTokenId(tokenId);
+        }
 
         if (_perTokenMetadata[tokenId].state == ExpandedNFTStates.REDEEMED) {
             return (_perTokenMetadata[tokenId].redeemedMetadataUrl);

@@ -67,7 +67,7 @@ describe("Mint in order", () => {
 
     expect(await minterContract.canMint(userAddress)).to.be.equal(false);
 
-    await expect(minterContract.connect(user).mintEdition(userAddress)).to.be.revertedWith("Needs to be an allowed minter");
+    await expect(minterContract.connect(user).mintEdition(userAddress)).to.be.revertedWith("NotAllowedToMint");
 
     expect(await minterContract.totalSupply()).to.be.equal(0);
     expect(await minterContract.isRandomMint()).to.be.equal(false);
@@ -78,7 +78,7 @@ describe("Mint in order", () => {
 
     expect(await minterContract.canMint(userAddress)).to.be.equal(false);
 
-    await expect(minterContract.connect(user).mintEdition(userAddress)).to.be.revertedWith("Needs to be an allowed minter");
+    await expect(minterContract.connect(user).mintEdition(userAddress)).to.be.revertedWith("NotAllowedToMint");
 
     expect(await minterContract.totalSupply()).to.be.equal(0);
     expect(await minterContract.isRandomMint()).to.be.equal(false);
@@ -122,7 +122,7 @@ describe("Mint in order", () => {
 
     await expect(minterContract.connect(user).mintEdition(userAddress, {
       value: ethers.utils.parseEther("0.1")
-    })).to.be.revertedWith("Exceeded mint limit");
+    })).to.be.revertedWith("MintingTooMany");
 
     expect(await minterContract.totalSupply()).to.be.equal(1);
   });
@@ -132,7 +132,7 @@ describe("Mint in order", () => {
 
     expect(await minterContract.canMint(userAddress)).to.be.equal(true);
 
-    await expect(minterContract.connect(user).mintEdition(userAddress)).to.be.revertedWith("Wrong price");
+    await expect(minterContract.connect(user).mintEdition(userAddress)).to.be.revertedWith("WrongPrice");
 
     expect(await minterContract.totalSupply()).to.be.equal(0);
     expect(await minterContract.isRandomMint()).to.be.equal(false);

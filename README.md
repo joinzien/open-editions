@@ -26,4 +26,3 @@ Based on the [Zora NFT Editions](https://github.com/ourzora/nft-editions) contra
 ## Drops
 
 - [Anamorphic Generations](https://opensea.io/collection/anamorphic-generations)
-  

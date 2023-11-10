@@ -20,6 +20,8 @@ describe("Pricing", () => {
   let artistAddress: string;
   let minterContract: OpenEditionsNFT;
 
+  const nullAddress = "0x0000000000000000000000000000000000000000";
+
   beforeEach(async () => {
     const { DropCreator } = await deployments.fixture([
       "DropCreator",
@@ -94,4 +96,65 @@ describe("Pricing", () => {
 
     expect(await minterContract.price()).to.be.equal(0);
   });
+
+  it("Set the discount not as the owner", async () => {
+    await expect(minterContract.connect(artist).updateDiscounts(nullAddress, nullAddress, 10, 10, 10, 10)).to.be.revertedWith("Ownable: caller is not the owner"); 
+  });
+
+  it("Set the discount as the owner", async () => {
+    const testAddress1 = "0x0123456789012345678901234567890123456789";
+    const testAddress2 = "0x9876543210987654321098765432109876543210";
+
+    expect(await minterContract.getAnnualPassAddress()).to.be.equal(nullAddress);
+    expect(await minterContract.getLifetimePassAddress()).to.be.equal(nullAddress);
+    expect(await minterContract.getAnnualPassAllowListPrice()).to.be.equal(0);
+    expect(await minterContract.getAnnualPassGeneralPrice()).to.be.equal(0);
+    expect(await minterContract.getLifetimeAllowListPassPrice()).to.be.equal(0);    
+    expect(await minterContract.getLifetimePassGeneralPrice()).to.be.equal(0);
+
+    await minterContract.updateDiscounts(testAddress1, testAddress2, 10, 20, 30, 40);
+    
+    expect(await minterContract.getAnnualPassAddress()).to.be.equal(testAddress1);
+    expect(await minterContract.getLifetimePassAddress()).to.be.equal(testAddress2);
+    expect(await minterContract.getAnnualPassAllowListPrice()).to.be.equal(10);
+    expect(await minterContract.getAnnualPassGeneralPrice()).to.be.equal(20);
+    expect(await minterContract.getLifetimeAllowListPassPrice()).to.be.equal(30);    
+    expect(await minterContract.getLifetimePassGeneralPrice()).to.be.equal(40);  
+  });
+
+  it("Check the price with valid passes addresses but not holding any", async () => {
+    await minterContract.setAllowedMinter(1);
+
+    const { TestPassOne } = await deployments.fixture(["TestPassOne"]);
+    let annualPassContract = (await ethers.getContractAt(
+      "TestPassOne",
+      TestPassOne.address
+    )) as TestPassOne;    
+    annualPassContract.initialize();
+
+    const { TestPassTwo } = await deployments.fixture(["TestPassTwo"]);
+    let lifetimePassContract = (await ethers.getContractAt(
+      "TestPassTwo",
+      TestPassTwo.address
+    )) as TestPassTwo;
+    lifetimePassContract.initialize();
+
+    expect(await minterContract.getAnnualPassAddress()).to.be.equal(nullAddress);
+    expect(await minterContract.getLifetimePassAddress()).to.be.equal(nullAddress);
+    expect(await minterContract.getAnnualPassAllowListPrice()).to.be.equal(0);
+    expect(await minterContract.getAnnualPassGeneralPrice()).to.be.equal(0);
+    expect(await minterContract.getLifetimeAllowListPassPrice()).to.be.equal(0);    
+    expect(await minterContract.getLifetimePassGeneralPrice()).to.be.equal(0);
+
+    await minterContract.updateDiscounts(annualPassContract.address, lifetimePassContract.address, 10, 20, 30, 40);
+    
+    expect(await minterContract.getAnnualPassAddress()).to.be.equal(annualPassContract.address);
+    expect(await minterContract.getLifetimePassAddress()).to.be.equal(lifetimePassContract.address);
+    expect(await minterContract.getAnnualPassAllowListPrice()).to.be.equal(10);
+    expect(await minterContract.getAnnualPassGeneralPrice()).to.be.equal(20);
+    expect(await minterContract.getLifetimeAllowListPassPrice()).to.be.equal(30);    
+    expect(await minterContract.getLifetimePassGeneralPrice()).to.be.equal(40);  
+
+    expect(await minterContract.connect(artist).price()).to.be.equal(10);    
+  }); 
 });
