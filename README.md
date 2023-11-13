@@ -22,6 +22,7 @@ Based on the [Zora NFT Editions](https://github.com/ourzora/nft-editions) contra
 ## ABIs
 
 - [V1](https://github.com/joinzien/open-editions/releases/tag/v1.0.0) [ABI](./abi/openedition_v1.json)
+- [V2](https://github.com/joinzien/open-editions/releases/tag/v2.0.0) [ABI](./abi/openedition_v2.json)
 
 ## Drops
 
